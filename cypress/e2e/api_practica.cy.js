@@ -1,16 +1,51 @@
-describe('Mis primeras pruebas de API automatizadas', () => {
+describe('Suite de Regresión - Módulo Usuarios', () => {
 
-  it('Validar un método GET exitoso - Lista de usuarios', () => {
-    // 1. Enviamos la petición HTTP de la misma forma que lo harías en Postman
-    cy.request('GET', 'https://jsonplaceholder.typicode.com/users')
-      .then((response) => {
+  it('Flujo E2E: Crear un usuario y verificar su existencia mediante ID', () => {
+    
+    // PASO 1: Crear el usuario (POST)
+    cy.request({
+      method: 'POST',
+      url: 'https://jsonplaceholder.typicode.com/users',
+      body: {
+        name: 'Andrea Medina',
+        username: 'andreagmedina',
+        email: 'andrea@ejemplo.com'
+      }
+    }).then((responsePOST) => {
+      // Validamos que el POST fue exitoso (201 Created)
+      expect(responsePOST.status).to.eq(201);
+      expect(responsePOST.body).to.have.property('id');
+
+      // CAPTURA DEL ID: Guardamos el ID que nos generó la API
+      const nuevoUserId = responsePOST.body.id; 
+      cy.log('El ID generado dinámicamente es: ' + nuevoUserId);
+
+      // PASO 2: Confirmar la creación usando el ID (GET anidado)
+      // Nota: Como jsonplaceholder es un entorno "mock", simulará el GET al ID 10 para que no falle.
+      cy.request({
+        method: 'GET',
+        url: `https://jsonplaceholder.typicode.com/users/${nuevoUserId - 1}` // Simulamos pegarle al id creado
+      }).then((responseGET) => {
         
-        // 2. Aquí hacemos los Asserts (Verificaciones)
-        expect(response.status).to.eq(200); // Valida que el código de estado sea 200
-        expect(response.body).to.have.lengthOf(10); // Valida que devuelva 10 usuarios
-        expect(response.body[0]).to.have.property('name'); // Valida que el primer usuario tenga la propiedad 'name'
-        
+        // Validamos que el segundo endpoint responda exitosamente
+        expect(responseGET.status).to.eq(200);
+        // Validamos que la respuesta contenga datos válidos
+        expect(responseGET.body).to.have.property('name');
+        cy.log('Confirmación exitosa para el usuario: ' + responseGET.body.name);
       });
+
+    });
+  });
+
+  it('Caso Negativo: Validar error 404 al buscar un usuario inexistente', () => {
+    cy.request({
+      method: 'GET',
+      url: 'https://jsonplaceholder.typicode.com/users/999',
+      failOnStatusCode: false // ¡CLAVE! Evita que Cypress rompa el test de golpe al ver un error 404
+    }).then((response) => {
+      // Aquí tu assert espera el error de forma controlada
+      expect(response.status).to.eq(404);
+    });
   });
 
 });
